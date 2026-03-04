@@ -38,4 +38,7 @@ public class AzureBlobStorageManager : IFileStorageManager
         await blob.DownloadToAsync(stream, cancellationToken);
         return stream.ToArray();
     }
+    public void Dispose()
+    {
+    }
 }

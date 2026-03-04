@@ -1,24 +1,31 @@
-using Infrastructure.Messaging.Azure;
+using Domain.Infrastructure.Messaging;
+using Infrastructure.Messaging.AzureQueueStorage;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Infrastructure.Messaging;
 
 public static class MessagingCollectionExtensions
 {
-    public static IServiceCollection AddMessaging(this IServiceCollection services, MessagingOptions options)
+    public static IServiceCollection AddMessageBusSender<T>(this IServiceCollection services, MessagingOptions options)
     {
         if (options.UseAzureQueue())
         {
-            services.AddAzureQueuePublisher(options.AzureQueue);
+            services.AddAzureQueueSender<T>(options.AzureQueue);
         }
 
         return services;
     }
 
-    public static IServiceCollection AddAzureQueuePublisher(this IServiceCollection services, AzureQueueOption options)
+    public static IServiceCollection AddAzureQueueSender<T>(this IServiceCollection services, AzureQueueOptions options)
     {
-        services.AddSingleton<IEventPublisher>(new AzureQueuePublisher(options.ConnectionString, options.QueueName));
+        var queueOptions = new AzureQueueStorageOptions
+        {
+            ConnectionString = options.ConnectionString,
+            QueueName = options.QueueNames[typeof(T).Name],
+            QueueClientOptions = options.QueueClientOptions
+        };
 
+        services.AddSingleton<IMessageSender<T>>(new AzureQueueStorageSender<T>(queueOptions));
         return services;
     }
 }

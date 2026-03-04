@@ -15,7 +15,7 @@ builder.AddProject<Projects.WebAPI>("webapi")
     .WithReference(blob)
     .WithReference(queue, "QueueTriggerConnection");
 
-builder.AddAzureFunctionsProject<Projects.Function>("function")
+builder.AddAzureFunctionsProject<Projects.AzureFunctions>("azurefunctions")
     .WithReference(blob)
     .WithReference(queue, "QueueTriggerConnection");
 

@@ -17,7 +17,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Function\Function.csproj" />
+    <ProjectReference Include="..\AzureFunctions\AzureFunctions.csproj" />
     <ProjectReference Include="..\WebAPI\WebAPI.csproj" />
   </ItemGroup>
 

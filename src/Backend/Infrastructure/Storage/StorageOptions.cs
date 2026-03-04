@@ -12,4 +12,9 @@ public class StorageOptions
     {
         return Provider == "AzureBlob";
     }
+
+    public bool UseFake()
+    {
+        return Provider == "Fake";
+    }
 }

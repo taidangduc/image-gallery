@@ -1,6 +1,6 @@
 ﻿namespace Infrastructure.Storage;
 
-public interface IFileStorageManager
+public interface IFileStorageManager : IDisposable
 {
     Task CreateAsync(IFileEntry fileEntry, Stream stream, CancellationToken cancellationToken = default);
     Task DeleteAsync(IFileEntry fileEntry, CancellationToken cancellationToken = default);

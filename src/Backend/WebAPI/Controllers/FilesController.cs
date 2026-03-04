@@ -1,6 +1,5 @@
 ﻿using Application.FileEntries.Services;
 using Domain.Entities;
-using Infrastructure.Messaging;
 using Infrastructure.Storage;
 using Microsoft.AspNetCore.Mvc;
 using WebAPI.Models;
@@ -10,6 +9,8 @@ using System.Net.Mime;
 using System.Net;
 using WebAPI.ConfigurationOptions;
 using Microsoft.Extensions.Options;
+using Domain.Infrastructure.Messaging;
+using Application.FileEntries.MessageBusEvents;
 
 namespace WebAPI.Controllers;
 
@@ -20,22 +21,22 @@ public class FilesController : Controller
 {
     private readonly AppSettings _options;
     private readonly IFileStorageManager _fileManager;
-    private readonly IFileService _fileService;
-    private readonly IEventPublisher _publisher;
+    private readonly IFileEntryService _fileEntryService;
+    private readonly IMessageBus _messageBus;
     private readonly IRepository<FileEntryImage, Guid> _fileEntryImageRepository;
 
     public FilesController(
         IOptions<AppSettings> options,
         IFileStorageManager fileManager,
-        IFileService fileService,
-        IEventPublisher publisher,
-        IRepository<FileEntryImage, Guid> fileEntryImageRepository)
+        IFileEntryService fileService,
+        IRepository<FileEntryImage, Guid> fileEntryImageRepository,
+        IMessageBus messageBus)
     {
         _options = options.Value;
         _fileManager = fileManager;
-        _fileService = fileService;
-        _publisher = publisher;
+        _fileEntryService = fileService;
         _fileEntryImageRepository = fileEntryImageRepository;
+        _messageBus = messageBus;
     }
 
     [HttpPost]
@@ -52,7 +53,7 @@ public class FilesController : Controller
             Deleted = false
         };
 
-        await _fileService.AddOrUpdateAsync(fileEntry);
+        await _fileEntryService.AddOrUpdateAsync(fileEntry);
 
         fileEntry.FileLocation = DateTime.Now.ToString("yyyy/MM/dd/") + fileEntry.Id;
 
@@ -61,15 +62,20 @@ public class FilesController : Controller
         using var stream = model.FormFile.OpenReadStream();
         await _fileManager.CreateAsync(fileEntryDTO, stream);
 
-        await _fileService.AddOrUpdateAsync(fileEntry);
+        await _fileEntryService.AddOrUpdateAsync(fileEntry);
 
         var message = JsonSerializer.Serialize(new
         {
-            FileEntryId = fileEntry.Id,
-            FileLocation = fileEntry.FileLocation
+            fileEntryId = fileEntry.Id,
+            fileLocation = fileEntry.FileLocation
         });
 
-        await _publisher.PublishAsync(message);
+        var @event = new FileCreatedEvent
+        {
+            FileEntry = fileEntry,
+        };
+
+        await _messageBus.SendAsync(@event);
 
         return Ok(fileEntry.ToModel());
     }
@@ -79,7 +85,7 @@ public class FilesController : Controller
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult> Update(Guid id, [FromBody] FileEntryModel model)
     {
-        var fileEntry = await _fileService.GetByIdAsync(id);
+        var fileEntry = await _fileEntryService.GetByIdAsync(id);
         if (fileEntry == null)
         {
             return NotFound();
@@ -88,7 +94,7 @@ public class FilesController : Controller
         fileEntry.Name = model.Name;
         fileEntry.Description = model.Description;
 
-        await _fileService.AddOrUpdateAsync(fileEntry);
+        await _fileEntryService.AddOrUpdateAsync(fileEntry);
 
         return Ok(model);
     }
@@ -96,7 +102,7 @@ public class FilesController : Controller
     [HttpDelete("{id}")]
     public async Task<IActionResult> Delete(Guid id)
     {
-        var fileEntry = await _fileService.GetByIdAsync(id);
+        var fileEntry = await _fileEntryService.GetByIdAsync(id);
         if (fileEntry == null)
         {
             return NotFound();
@@ -105,7 +111,7 @@ public class FilesController : Controller
         fileEntry.Deleted = true;
         fileEntry.DeletedAt = DateTimeOffset.UtcNow;
 
-        await _fileService.AddOrUpdateAsync(fileEntry);
+        await _fileEntryService.AddOrUpdateAsync(fileEntry);
 
         return Ok();
     }
@@ -113,7 +119,7 @@ public class FilesController : Controller
     [HttpGet("{id}/download")]
     public async Task<IActionResult> Download(Guid id)
     {
-        var fileEntry = await _fileService.GetByIdAsync(id);
+        var fileEntry = await _fileEntryService.GetByIdAsync(id);
         if (fileEntry == null)
         {
             return NotFound();
@@ -126,7 +132,7 @@ public class FilesController : Controller
     [HttpGet("{id}/downloadimage")]
     public async Task<IActionResult> DownloadImage(Guid id)
     {
-        var fileEntry = await _fileService.GetByIdAsync(id);
+        var fileEntry = await _fileEntryService.GetByIdAsync(id);
         if (fileEntry == null)
         {
             return NotFound();
@@ -148,14 +154,14 @@ public class FilesController : Controller
     [HttpGet]
     public async Task<IActionResult> Get()
     {
-        var fileEntries = await _fileService.GetAsync();
+        var fileEntries = await _fileEntryService.GetAsync();
         return Ok(fileEntries.ToModels());
     }
 
     [HttpGet("{id}")]
     public async Task<ActionResult<IEnumerable<FileEntryModel>>> Get(Guid id)
     {
-        var fileEntry = await _fileService.GetByIdAsync(id);
+        var fileEntry = await _fileEntryService.GetByIdAsync(id);
 
         if (fileEntry == null || fileEntry.Deleted)
         {

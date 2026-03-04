@@ -1,7 +1,8 @@
 using Application;
-using Infrastructure.Messaging;
+using Domain.Infrastructure.Messaging;
 using Infrastructure.Storage;
 using Persistence;
+using System.Reflection;
 using WebAPI.ConfigurationOptions;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -19,14 +20,14 @@ services.AddControllers();
 
 services.AddPersistence(appSettings.ConnectionStrings.DefaultConnection)
         .AddApplicationServices()
-        .AddMessaging(appSettings.Messaging)
         .AddStorage(appSettings.Storage);
+
+services.AddMessageBus(Assembly.GetExecutingAssembly());
 
 var app = builder.Build();
 
 app.MapDefaultEndpoints();
 
-// Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
@@ -37,7 +38,6 @@ if (app.Environment.IsDevelopment())
     }
 }
 
-//app.UseHttpsRedirection();
 app.MapControllers();
 
 app.Run();

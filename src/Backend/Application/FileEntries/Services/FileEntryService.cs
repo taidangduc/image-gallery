@@ -3,12 +3,12 @@ using Domain.Repositories;
 
 namespace Application.FileEntries.Services;
 
-public class FileService : IFileService
+public class FileEntryService : IFileEntryService
 {
     private readonly IUnitOfWork _unitOfWork;
     protected readonly IRepository<FileEntry, Guid> _repository;
 
-    public FileService(IUnitOfWork unitOfWork, IRepository<FileEntry, Guid> repository)
+    public FileEntryService(IUnitOfWork unitOfWork, IRepository<FileEntry, Guid> repository)
     {
         _unitOfWork = unitOfWork;
         _repository = repository;

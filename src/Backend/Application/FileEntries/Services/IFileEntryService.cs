@@ -3,7 +3,7 @@ using Domain.Entities;
 
 namespace Application.FileEntries.Services;
 
-public interface IFileService
+public interface IFileEntryService
 {
     Task AddOrUpdateAsync(FileEntry entity, CancellationToken cancellationToken = default);
     Task DeleteAsync(FileEntry entity, CancellationToken cancellationToken = default);
