@@ -30,7 +30,7 @@ public class FunctionQueueTrigger
     }
 
     [Function(nameof(FunctionQueueTrigger))]
-    public async Task Run([QueueTrigger("image-processing-queue", Connection = "QueueTriggerConnection")] QueueMessage message)
+    public async Task Run([QueueTrigger("image-processing-queue", Connection = "AzureQueueConnectionString")] QueueMessage message)
     {
         await ProcessMessageAsync(message);
     }

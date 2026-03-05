@@ -1,4 +1,5 @@
 ﻿using Infrastructure.Storage.Azure;
+using Infrastructure.Storage.Fake;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Infrastructure.Storage;
@@ -9,7 +10,12 @@ public static class StorageCollectionExtensions
     {
         if (options.UseAzure())
         {
-            services.AddAzureBlobStorage(options.AzureBlob);
+            services.AddAzureBlobStorage(options.Azure);
+        }
+
+        else
+        {
+            services.AddFakeStorageManager();
         }
 
         return services;
@@ -20,4 +26,12 @@ public static class StorageCollectionExtensions
 
         return services;
     }
+
+     public static IServiceCollection AddFakeStorageManager(this IServiceCollection services)
+    {
+        services.AddSingleton<IFileStorageManager>(new FakeStorageManager());
+
+        return services;
+    }
+
 }

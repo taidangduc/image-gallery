@@ -20,6 +20,8 @@ builder.Services
 
 var config = new ConfigurationBuilder()
     .AddJsonFile("appsettings.json")
+    .AddJsonFile($"appsettings.{builder.Environment.EnvironmentName}.json")
+    .AddEnvironmentVariables()
     .Build();
 
 var connectionString = config.GetConnectionString("DefaultConnection");

@@ -1,5 +1,6 @@
 using Domain.Infrastructure.Messaging;
 using Infrastructure.Messaging.AzureQueueStorage;
+using Infrastructure.Messaging.Fake;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Infrastructure.Messaging;
@@ -11,6 +12,10 @@ public static class MessagingCollectionExtensions
         if (options.UseAzureQueue())
         {
             services.AddAzureQueueSender<T>(options.AzureQueue);
+        }
+        else
+        {
+            services.AddFakeSender<T>();
         }
 
         return services;
@@ -26,6 +31,12 @@ public static class MessagingCollectionExtensions
         };
 
         services.AddSingleton<IMessageSender<T>>(new AzureQueueStorageSender<T>(queueOptions));
+        return services;
+    }
+
+    public static IServiceCollection AddFakeSender<T>(this IServiceCollection services)
+    {
+        services.AddSingleton<IMessageSender<T>>(new FakeSender<T>());
         return services;
     }
 }
