@@ -18,8 +18,14 @@ builder.Services
     .AddApplicationInsightsTelemetryWorkerService()
     .ConfigureFunctionsApplicationInsights();
 
-var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")!;
-var storageOptions = builder.Configuration.GetSection("Storage").Get<StorageOptions>() ?? new StorageOptions();
+var config = new ConfigurationBuilder()
+    .AddJsonFile("appsettings.json")
+    .Build();
+
+var connectionString = config.GetConnectionString("DefaultConnection");
+
+var storageOptions = new StorageOptions();
+config.GetSection("Storage").Bind(storageOptions);
 
 builder.Services
     .AddPersistence(connectionString)
