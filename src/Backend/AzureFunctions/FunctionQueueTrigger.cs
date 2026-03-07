@@ -1,10 +1,12 @@
 using Application.FileEntries.MessageBusEvents;
-using Application.FileEntries.Services;
 using Azure.Storage.Queues.Models;
 using Domain.Entities;
+using Domain.Infrastructure.Messaging;
+using Domain.Repositories;
 using Infrastructure.Imaging;
 using Infrastructure.Storage;
 using Microsoft.Azure.Functions.Worker;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using System.Text.Json;
 
@@ -14,68 +16,109 @@ public class FunctionQueueTrigger
 {
     private readonly ILogger<FunctionQueueTrigger> _logger;
     private readonly ImageProcessingService _imageProcessingService;
-    private readonly IFileEntryService _fileEntryService;
+    private readonly IRepository<FileEntryImage, Guid> _fileEntryImageRepository;
     private readonly IFileStorageManager _fileManager;
 
     public FunctionQueueTrigger(
         ILogger<FunctionQueueTrigger> logger,
         ImageProcessingService imageProcessingService,
-        IFileEntryService fileEntryService,
-        IFileStorageManager fileManager)
+        IFileStorageManager fileManager,
+        IRepository<FileEntryImage, Guid> fileEntryImageRepository)
     {
         _logger = logger;
         _imageProcessingService = imageProcessingService;
-        _fileEntryService = fileEntryService;
         _fileManager = fileManager;
+        _fileEntryImageRepository = fileEntryImageRepository;
     }
 
     [Function(nameof(FunctionQueueTrigger))]
     public async Task Run([QueueTrigger("image-processing-queue", Connection = "AzureQueueConnectionString")] QueueMessage message)
     {
-        await ProcessMessageAsync(message);
-    }
-
-    public async Task ProcessMessageAsync(QueueMessage message, CancellationToken cancellationToken = default)
-    {
         _logger.LogInformation("C# Queue trigger function processed: {messageText}", message.MessageText);
 
-        var messageData = JsonSerializer.Deserialize<FileCreatedEvent>(message.MessageText);
+        var data = JsonSerializer.Deserialize<Message<FileCreatedEvent>>(message.MessageText);
+        var fileEntry = data.Data.FileEntry;
 
-        var fileEntry = await _fileEntryService.GetByIdAsync(messageData.FileEntry.Id);
+        await ProcessMessageAsync(fileEntry);
+    }
 
-        if (fileEntry == null)
+    public async Task ProcessMessageAsync(FileEntry fileEntry, CancellationToken cancellationToken = default)
+    {
+        if (fileEntry == null || fileEntry == default)
         {
-            _logger.LogError("FileEntry with ID {fileEntryId} not found.", messageData.FileEntry.Id);
             return;
         }
 
-        try
+        if (string.IsNullOrEmpty(fileEntry.FileLocation))
         {
-            var fileBytes = await _fileManager.ReadAsync(fileEntry.ToModel());
+            return;
+        }
 
-            if (fileBytes == null)
+        if (fileEntry.Deleted)
+        {
+            return;
+        }
+
+        var fileExtension = Path.GetExtension(fileEntry.FileName).ToLowerInvariant();
+
+        if (fileExtension == ".jpg" || fileExtension == ".png")
+        {
+            var fileEntryImage = _fileEntryImageRepository.GetQueryableSet().FirstOrDefault(x => x.FileEntryId == fileEntry.Id);
+
+            if (fileEntryImage == null)
             {
-                _logger.LogError("Failed to read file for FileEntry ID: {fileEntryId}", fileEntry.Id);
-                return;
+                fileEntryImage = new FileEntryImage
+                {
+                    ImageLocation = $"thumbnails/{DateTime.Now:yyyy/MM/dd}/{fileEntry.Id}.{fileExtension}",
+                    FileEntryId = fileEntry.Id,
+                };
+
+                try
+                {
+                    var bytes = await _fileManager.ReadAsync(fileEntry.ToModel());
+
+                    string contentType = GetMediaType(fileExtension);
+
+                    if (bytes == null)
+                    {
+                        _logger.LogError("Failed to read file for FileEntry ID: {fileEntryId}", fileEntry.Id);
+                        return;
+                    }
+
+                    var fileStream = await _imageProcessingService.ResizeAsync(bytes);
+
+                    var newFile = new FileEntryModel
+                    {
+                        Id = fileEntry.Id,
+                        FileName = fileEntry.FileName,
+                        FileLocation = fileEntryImage.ImageLocation
+                    };
+
+                    await _fileManager.CreateAsync(newFile, fileStream, contentType);
+
+                    await _fileEntryImageRepository.AddAsync(fileEntryImage);
+                    await _fileEntryImageRepository.UnitOfWork.SaveChangesAsync();
+
+                    // delete azure queue message after processing
+                    // Note: Azure Functions automatically deletes the message from the queue if the function executes successfully.
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error processing image for FileEntry ID: {fileEntryId}", fileEntry.Id);
+                    throw;
+                }
             }
-
-            var fileStream = await _imageProcessingService.ResizeAsync(fileBytes);
-
-            fileEntry.FileLocation = DateTime.Now.ToString("yyyy/MM/dd/") + fileEntry.Id;
-            fileEntry.Processed = true;
-
-            await _fileManager.CreateAsync(fileEntry.ToModel(), fileStream);
-
-            await _fileEntryService.AddOrUpdateAsync(fileEntry, cancellationToken);
-
-            // delete azure queue message after processing
-            // Note: Azure Functions automatically deletes the message from the queue if the function executes successfully.
         }
-        catch (Exception ex)
+    }
+
+    private static string GetMediaType(string fileExtension)
+    {
+        return fileExtension switch
         {
-            _logger.LogError(ex, "Error processing image for FileEntry ID: {fileEntryId}", fileEntry.Id);
-            throw;
-        }
+            ".jpg" or ".jpeg" => "image/jpeg",
+            ".png" => "image/png",
+            _ => "application/octet-stream",
+        };
     }
 }
 

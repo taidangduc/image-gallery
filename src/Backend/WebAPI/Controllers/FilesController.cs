@@ -3,7 +3,6 @@ using Domain.Entities;
 using Infrastructure.Storage;
 using Microsoft.AspNetCore.Mvc;
 using WebAPI.Models;
-using System.Text.Json;
 using Domain.Repositories;
 using System.Net.Mime;
 using System.Net;
@@ -51,11 +50,11 @@ public class FilesController : Controller
             UploadedAt = DateTimeOffset.UtcNow,
             Processed = false,
             Deleted = false
-        };
+        }; 
 
         await _fileEntryService.AddOrUpdateAsync(fileEntry);
 
-        fileEntry.FileLocation = DateTime.Now.ToString("yyyy/MM/dd/") + fileEntry.Id;
+        fileEntry.FileLocation = $"originals/{DateTime.Now.ToString("yyyy/MM/dd/") + fileEntry.Id}";
 
         var fileEntryDTO = fileEntry.ToModel();
 
@@ -64,18 +63,12 @@ public class FilesController : Controller
 
         await _fileEntryService.AddOrUpdateAsync(fileEntry);
 
-        var message = JsonSerializer.Serialize(new
-        {
-            fileEntryId = fileEntry.Id,
-            fileLocation = fileEntry.FileLocation
-        });
-
-        var @event = new FileCreatedEvent
+        var message = new FileCreatedEvent
         {
             FileEntry = fileEntry,
         };
 
-        await _messageBus.SendAsync(@event);
+        await _messageBus.SendAsync(message);
 
         return Ok(fileEntry.ToModel());
     }

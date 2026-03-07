@@ -8,5 +8,11 @@
             },
             "enableLiveMetricsFilters": true
         }
-    }
+    },
+    "extensions": {
+      "queues": {
+        "maxDequeueCount": 5,
+        "messageEncoding": "none"
+      }
+  }
 }

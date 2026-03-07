@@ -1,5 +1,6 @@
 ﻿
 using Azure.Storage.Blobs;
+using Azure.Storage.Blobs.Models;
 
 namespace Infrastructure.Storage.Azure;
 
@@ -15,14 +16,34 @@ public class AzureBlobStorageManager : IFileStorageManager
 
     public string GetBlobName(IFileEntry fileEntry)
     {
-        return _option.Path + fileEntry.FileLocation;
+        return Path.Combine(_option.Path, fileEntry.FileLocation);
     }
+
     public async Task CreateAsync(IFileEntry fileEntry, Stream stream, CancellationToken cancellationToken = default)
+    {
+        await _container.CreateIfNotExistsAsync(cancellationToken: cancellationToken);
+        
+        BlobClient blob = _container.GetBlobClient(GetBlobName(fileEntry));
+        await blob.UploadAsync(stream, overwrite: true, cancellationToken: cancellationToken);
+    }
+
+    public async Task CreateAsync(IFileEntry fileEntry, Stream stream, string? contentType = null, CancellationToken cancellationToken = default)
     {
         await _container.CreateIfNotExistsAsync(cancellationToken: cancellationToken);
 
         BlobClient blob = _container.GetBlobClient(GetBlobName(fileEntry));
-        await blob.UploadAsync(stream, overwrite: true, cancellationToken: cancellationToken);
+
+        var options = new BlobUploadOptions();
+
+        if(!string.IsNullOrEmpty(contentType))
+        {
+            options.HttpHeaders = new BlobHttpHeaders
+            {
+                ContentType = contentType
+            };
+        }
+
+        await blob.UploadAsync(stream, options, cancellationToken: cancellationToken);
     }
 
     public Task DeleteAsync(IFileEntry fileEntry, CancellationToken cancellationToken = default)
@@ -38,7 +59,8 @@ public class AzureBlobStorageManager : IFileStorageManager
         await blob.DownloadToAsync(stream, cancellationToken);
         return stream.ToArray();
     }
+
     public void Dispose()
     {
-    }
+    }  
 }

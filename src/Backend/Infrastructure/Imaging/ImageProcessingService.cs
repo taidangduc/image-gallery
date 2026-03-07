@@ -21,7 +21,7 @@ public class ImageProcessingService
 
         await image.SaveAsJpegAsync(outputStream, new JpegEncoder
         {
-            Quality = 85
+            Quality = 90
         }, cancellationToken);
 
         outputStream.Position = 0;

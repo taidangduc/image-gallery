@@ -9,6 +9,11 @@ public class FakeStorageManager : IFileStorageManager
        return Task.CompletedTask;
     }
 
+    public Task CreateAsync(IFileEntry fileEntry, Stream stream, string contentType, CancellationToken cancellationToken = default)
+    {
+        return Task.CompletedTask;
+    }
+
     public Task DeleteAsync(IFileEntry fileEntry, CancellationToken cancellationToken = default)
     {
         return Task.CompletedTask;
@@ -21,5 +26,5 @@ public class FakeStorageManager : IFileStorageManager
 
     public void Dispose()
     {
-    }
+    }   
 }

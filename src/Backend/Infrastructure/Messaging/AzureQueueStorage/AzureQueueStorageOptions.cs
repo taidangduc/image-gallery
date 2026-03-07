@@ -18,7 +18,7 @@ public class AzureQueueStorageOptions
 
     public QueueClient CreateQueueClient()
     {
-        var options = new QueueClientOptions();
+        var options = GetQueueClientOptions();
 
         return options == null ?
             new QueueClient(ConnectionString, QueueName) :

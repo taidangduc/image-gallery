@@ -5,6 +5,8 @@ using Persistence;
 using System.Reflection;
 using WebAPI.ConfigurationOptions;
 using Microsoft.OpenApi.Models;
+using Infrastructure.Messaging;
+using Application.FileEntries.MessageBusEvents;
 
 var builder = WebApplication.CreateBuilder(args);
 var configuration = builder.Configuration;
@@ -24,6 +26,7 @@ services.AddPersistence(appSettings.ConnectionStrings.DefaultConnection)
         .AddStorage(appSettings.Storage);
 
 services.AddMessageBus(Assembly.GetExecutingAssembly());
+services.AddMessageBusSender<FileCreatedEvent>(appSettings.Messaging);
 
 services.AddSwaggerGen(c =>
 {
