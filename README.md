@@ -40,6 +40,10 @@ npm run dev
 ```
 - Go to http://localhost:5173/
 
-<img width="1499" height="935" alt="image" src="https://github.com/user-attachments/assets/8d8753c2-3142-45c9-b61b-391d69718363" />
+<img width="auto" height="auto" alt="image" src="docs/imgs/react-home-page.png"/>
+
+# Demo
+
+<img width="auto" height="auto" alt="image" src="docs/imgs/run-demo.gif" />
 
 
