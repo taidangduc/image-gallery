@@ -1,5 +1,5 @@
-# Image Gallery
-Practical implementation of image post-processing with cloud services integration.
+# Object Storage
+Practical implementation messaging and storage with cloud services.
 
 # Architecture
 
